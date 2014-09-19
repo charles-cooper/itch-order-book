@@ -27,9 +27,11 @@ class fixed_array_allocator
 	public :
 		MEMORY_DEFS;
 		__size_t m_size = 0;
+	private :
 		__size_t m_first_free = 0;
 		__size_t m_last_free = 0;
-		__size_t const BUF_MASK;
+	public :
+		static __size_t constexpr BUF_MASK = N - 1;
 		// maintain a fixed size array. allocate requires two __size_t increments
 		T m_allocated[N];
 		// maintain a FIFO queue of free locations. this is implemented
@@ -38,12 +40,10 @@ class fixed_array_allocator
 		// to use an array stack starting at zero but calls to free
 		// would require memmove, thrashing the cache
 		__size_t m_free[N];
-		fixed_array_allocator() : BUF_MASK(N - 1)
+		fixed_array_allocator()
 	{
 		static_assert(is_power_of_two(N), "pool size must be power of two!");
-		//static_assert(std::numeric_limits<__size_t>::max() > N, "");
-		memset(m_allocated, 0, sizeof(m_allocated));
-		memset(m_free, 0, sizeof(m_allocated));
+		static_assert(is_power_of_two(BUF_MASK+1), "mask should be sane");
 	}
 		T *get(ptr_t idx) {
 			return &m_allocated[__size_t(idx)];
@@ -57,6 +57,7 @@ class fixed_array_allocator
 				assert(IS_VALID(m_size));
 				return __ptr(ret++);
 			}
+			assert(m_first_free <= m_last_free);
 			return __ptr(m_free[(m_first_free++) & BUF_MASK]);
 		}
 		void free(__ptr idx) {
@@ -89,7 +90,6 @@ class order
 	{}
 };
 enum class book_id_t : uint16_t {};
-#define DETYPE_BOOK(__book_idx) uint16_t(__book_idx)
 enum class level_id_t : uint16_t {};
 enum class order_id_t : uint32_t {};
 typedef struct order_ptr
@@ -151,16 +151,16 @@ qty_t operator + (qty_t const a, qty_t const b) {
 class order_book
 {
 	public :
-		static constexpr size_t MAX_BOOKS = 1<<10;
+		static constexpr size_t MAX_BOOKS = 1<<15;
 		static constexpr size_t MAX_LEVELS = 1<<10;
-		static constexpr size_t MAX_ORDERS = 1<<5;
+		static constexpr size_t MAX_ORDERS = 1<<15;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
-		level_vector m_levels;
 		using order_vector = fixed_array_allocator<order, order_id_t, order_id_t(MAX_ORDERS)>;
-		order_vector m_orders;
 		using sorted_levels_t = fixed_size_array<price_level, level_id_t, MAX_LEVELS / 2>;
+		level_vector m_levels;
+		order_vector m_orders;
 		sorted_levels_t m_bids;
 		sorted_levels_t m_offers;
 		using level_ptr_t = level_vector::__ptr;
@@ -187,11 +187,11 @@ class order_book
 					found = true;
 					break;
 				} else if (price > curprice.m_price) {
-					// insertion pt will be zero if price < all prices
-					insertion_point++;
+					// insertion pt will be -1 if price < all prices
 					break;
 				}
 			}
+			++insertion_point;
 			if (!found) {
 				ptr.level_idx = m_levels.alloc();
 				m_levels[ptr.level_idx].m_qty = qty_t(0);
@@ -241,7 +241,6 @@ class order_book
 				sorted_levels_t *sorted_levels = is_bid(price) ?
 					&m_bids : &m_offers;
 				//DELETE([ptr.level_idx].price);
-				//for (sorted_levels_t::__size_t i = sorted_levels->m_size - 1; i; --i) {
 				sorted_levels_t::__size_t i = sorted_levels->m_size;
 				while (i--) {
 					if (sorted_levels->m_data[i].m_price == price) {
@@ -255,7 +254,7 @@ class order_book
 			}
 			static void execute_order(order_id_t const oid, qty_t const qty) {
 				order_ptr_t const ptr = oid_map[oid];
-				order_book *book = &s_books[DETYPE_BOOK(ptr.book_idx)];
+				order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
 
 				if (qty == book->m_orders[ptr.order_idx].m_qty) {
 					book->DELETE_ORDER(ptr);
@@ -266,7 +265,7 @@ class order_book
 			static void replace_order(order_id_t const old_oid, order_id_t const new_oid, sprice_t new_price, qty_t const new_qty)
 			{
 				order_ptr_t const ptr = oid_map[old_oid];
-				order_book *book = &s_books[DETYPE_BOOK(ptr.book_idx)];
+				order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
 				bool bid = MKPRIMITIVE(book->m_levels[ptr.level_idx].m_price) >= 0;
 				book->DELETE_ORDER(ptr);
 				if (!bid) {

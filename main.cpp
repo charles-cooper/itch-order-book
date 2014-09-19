@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <memory>
+#include <chrono>
 #include <limits>
 #include "bufferedreader.h"
 #include "itch.h"
@@ -15,7 +16,7 @@ class PROCESS
 			assert(msglen == netlen<__code>);
 
 			__buf->ensure(netlen<__code>);
-			printf("%d %c\n", char(__code), char(__code));
+			//printf("%d %c\n", char(__code), char(__code));
 			itch_message<__code> ret = itch_message<__code>::parse(__buf->get(0));
 			__buf->advance(netlen<__code>);
 			return ret;
@@ -39,9 +40,11 @@ int main()
 {
 	buf_t buf(1024);
 	buf.fd = STDIN_FILENO;
-	printf("HI\n");
+	std::chrono::steady_clock::time_point start;
+	size_t npkts = 0;
 	while (is_ok(buf.ensure(3)))
 	{
+		if (npkts) ++npkts;
 		itch_t const msgtype = itch_t(*buf.get(2));
 		switch (msgtype)
 		{
@@ -61,6 +64,11 @@ int main()
 
 			case (itch_t::ADD_ORDER) :
 			{
+				if (!npkts) {
+					start = std::chrono::steady_clock::now();
+					++npkts;
+				}					
+
 				auto const pkt = PROCESS<itch_t::ADD_ORDER>::read_from(&buf);
 				order_book::add_order(order_id_t(pkt.oid), book_id_t(pkt.stock_locate), mksigned(pkt.price, pkt.buy), pkt.qty);
 				break;
@@ -110,5 +118,8 @@ int main()
 			}
 		}
 	}
+	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+	size_t nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+	printf("%lu packets in %lu nanos , %.2f nanos per packet \n", npkts, nanos, nanos / (double)npkts);
 }
 
