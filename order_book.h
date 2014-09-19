@@ -151,9 +151,9 @@ qty_t operator + (qty_t const a, qty_t const b) {
 class order_book
 {
 	public :
-		static constexpr size_t MAX_BOOKS = 1<<14;
-		static constexpr size_t MAX_LEVELS = 1<<15;
-		static constexpr size_t MAX_ORDERS = 1<<20;
+		static constexpr size_t MAX_BOOKS = 1<<10;
+		static constexpr size_t MAX_LEVELS = 1<<10;
+		static constexpr size_t MAX_ORDERS = 1<<5;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;

@@ -10,7 +10,12 @@ class PROCESS
 {
 	public :
 		static itch_message<__code> read_from(buf_t *__buf) {
+			uint16_t const msglen = be16toh(*(uint16_t*)__buf->get(0));
+			__buf->advance(2);
+			assert(msglen == netlen<__code>);
+
 			__buf->ensure(netlen<__code>);
+			printf("%d %c\n", char(__code), char(__code));
 			itch_message<__code> ret = itch_message<__code>::parse(__buf->get(0));
 			__buf->advance(netlen<__code>);
 			return ret;
@@ -20,7 +25,7 @@ class PROCESS
 static sprice_t mksigned(price_t price, BUY_SELL buy)
 {
 	assert(MKPRIMITIVE(price) < std::numeric_limits<int32_t>::max());
-	int32_t ret = (int32_t)price;
+	auto ret = MKPRIMITIVE(price);
 	if (BUY_SELL::SELL == buy)
 		ret = -ret;
 	return sprice_t(ret);
@@ -34,9 +39,10 @@ int main()
 {
 	buf_t buf(1024);
 	buf.fd = STDIN_FILENO;
-	while (is_ok(buf.ensure(1)))
+	printf("HI\n");
+	while (is_ok(buf.ensure(3)))
 	{
-		itch_t const msgtype = itch_t(*buf.get(0));
+		itch_t const msgtype = itch_t(*buf.get(2));
 		switch (msgtype)
 		{
 			DO_CASE(itch_t::SYSEVENT);
@@ -93,10 +99,15 @@ int main()
 			{
 				auto const pkt = PROCESS<itch_t::REPLACE_ORDER>::read_from(&buf);
 				order_book::replace_order(order_id_t(pkt.oid), order_id_t(pkt.new_order_id), mksigned(pkt.new_price, BUY_SELL::BUY), pkt.new_qty);
-				// actually it will get resigned inside. code smell
+				// actually it will get re-signed inside. code smell
 				break;
 			}
-			default : { assert(false); break;}
+			default :
+			{
+				printf("Uh oh bad code %d\n", char(msgtype));
+				assert(false);
+				break;
+			}
 		}
 	}
 }
