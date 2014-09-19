@@ -1,4 +1,5 @@
 
+// use custom pointers, __size_t, to save space.
 template<class T, typename ptr_t, prim_t N>
 class fixed_array_allocator
 {
@@ -11,7 +12,13 @@ class fixed_array_allocator
 		return idx < N;
 	}
 
+	// maintain a fixed size array. allocate requires two __size_t increments
 	T m_allocated[N];
+	// maintain a FIFO queue of free locations. this is implemented
+	// as a deque in a circular buffer so that calls to alloc or free
+	// only require one pointer dereference. another option would be
+	// to use an array stack starting at zero but calls to free
+	// would require memmove, thrashing the cache
 	__size_t m_free[N];
 	fixed_array_allocator() : BUF_MASK(N - 1)
 	{
@@ -61,6 +68,13 @@ class book
 	{
 	public :
 		qty_t m_qty;
+		// if one wanted to maintain queue positions and other such nasty
+		// stuff, it would probably be fast if you maintained a doubly
+		// linked list:
+#if 0
+		uint32_t next = -1;
+		uint32_t prev = -1;
+#endif
 		order(qty_t __qty) :
 			m_qty(__qty)
 		{}
@@ -76,6 +90,7 @@ class book
 	};
 	using level_ptr_t = level_vector::__size_t;
 	using order_idx_t = level_vector::__size_t;
+	// TODO remove static signature on these things and put in object
 	static void add_order(order_id_t const oid, book_id_t const __book_idx, price_t const __price, qty_t const signed_qty) {
 		order_ptr_t ptr;
 		ptr.book_idx = __book_idx;
@@ -100,25 +115,40 @@ class book
 	}
 	static void delete_order(order_id_t const oid) {
 		order_ptr_t ptr = oid_map[oid];
-		book *__book = s_books[ptr.book_idx];
-
-		assert(__book->m_levels[ptr.level_idx].qty
-			>= __book->m_orders[ptr.order_idx].qty);
-		__book->m_levels[ptr.level_idx].qty
-			-= __book->m_orders[ptr.order_idx].qty;
-		if (0==__book->m_levels[ptr.level_idx].qty) {
-			__book->DELETE_LEVEL(__price, ptr.level_idx);
-			__book->m_levels.free(ptr.level_idx);
-		}
-		__book->m_orders.free(ptr.order_idx);
+		DELETE_ORDER(ptr);
 	}
-	static void cancel_order(order_id_t const oid, qty_t unsigned_qty) {
-		order_ptr_t ptr = oid_map[oid];
+	static int SIGN(int32_t arg) {
+		return arg < 0 ? -1 : 1;
+	}
+	static void cancel_order(order_id_t const oid, uint32_t const __qty) {
+		s_books[ptr.book_idx]->REDUCE_ORDER(ptr, __qty);
+	}
+	// shared between cancel(aka partial cancel aka reduce) and execute
+	void REDUCE_ORDER(order_ptr_t const ptr, uint32_t const __qty) {
+		this->m_levels[ptr.level_idx].qty -= __qty;
+		this->m_orders[ptr.order_idx].qty -= __qty;
+	}
+	// shared between delete and execute
+	void DELETE_ORDER(order_ptr_t const ptr) {
+		assert(m_levels[ptr.level_idx].qty
+				>= m_orders[ptr.order_idx].qty);
+		m_levels[ptr.level_idx].qty
+			-= m_orders[ptr.order_idx].qty;
+		if (0==m_levels[ptr.level_idx].qty) {
+			DELETE_LEVEL(__price, ptr.level_idx);
+			m_levels.free(ptr.level_idx);
+		}
+		m_orders.free(ptr.order_idx);
+	}
+	static void execute_order(order_id_t const oid, uint32_t const __qty) {
+		order_ptr_t const ptr = oid_map[oid];
 		book *__book = s_books[ptr.book_idx];
-		qty_t signed_qty = SIGN(level.qty) * unsigned_qty;
 
-		__book->m_levels[ptr.level_idx].qty -= __qty;
-		__book->m_orders[ptr.order_idx].qty -= __qty;
+		if (__qty == __book->m_orders[ptr.order_idx].qty) {
+			__book->DELETE_ORDER(ptr);
+		} else {
+			__book->REDUCE_ORDER(ptr, __qty);
+		}
 	}
 }
 
