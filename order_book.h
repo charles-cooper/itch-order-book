@@ -151,16 +151,16 @@ qty_t operator + (qty_t const a, qty_t const b) {
 class order_book
 {
 	public :
-		static constexpr size_t MAX_BOOKS = 1<<15;
-		static constexpr size_t MAX_LEVELS = 1<<12;
-		static constexpr size_t MAX_ORDERS = 1<<24;
-		static order_book s_books[MAX_BOOKS]; // can we allocate this on the stack??
+		static constexpr size_t MAX_BOOKS = 1<<14;
+		static constexpr size_t MAX_LEVELS = 1<<15;
+		static constexpr size_t MAX_ORDERS = 1<<20;
+		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
-		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(1<<12)>;
+		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
 		level_vector m_levels;
-		using order_vector = fixed_array_allocator<order, order_id_t, order_id_t(1<<24)>;
+		using order_vector = fixed_array_allocator<order, order_id_t, order_id_t(MAX_ORDERS)>;
 		order_vector m_orders;
-		using sorted_levels_t = fixed_size_array<price_level, level_id_t, level_vector::N/2>;
+		using sorted_levels_t = fixed_size_array<price_level, level_id_t, MAX_LEVELS / 2>;
 		sorted_levels_t m_bids;
 		sorted_levels_t m_offers;
 		using level_ptr_t = level_vector::__ptr;
@@ -277,6 +277,4 @@ class order_book
 		};
 
 		std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
-
-		order_book order_book::s_books[MAX_BOOKS]; // can we allocate this on the stack??
-
+		order_book *order_book::s_books = new order_book[MAX_BOOKS];
