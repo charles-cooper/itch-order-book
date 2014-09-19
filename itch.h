@@ -217,6 +217,13 @@ struct itch_message<MSG::REPLACE_ORDER>
 	oid_t const new_order_id;
 	price_t const new_price;
 	qty_t const new_qty;
-
+	static itch_message parse(char const *ptr) {
+		return itch_message(
+				read_oid(ptr+11),
+				read_oid(ptr+19),
+				read_price(ptr+27),
+				read_qty(ptr+31)
+				);
+	}
 };
 
