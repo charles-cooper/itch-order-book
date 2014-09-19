@@ -72,6 +72,10 @@ struct itch_message
 {
 	static constexpr itch_t code = __code;
 	static constexpr unsigned char network_len = netlen<__code>;
+	static itch_message parse(char const *ptr) {
+		static_cast<void>(ptr);
+		return itch_message();
+	}
 };
 
 enum class BUY_SELL : char {
@@ -215,11 +219,4 @@ struct itch_message<MSG::REPLACE_ORDER>
 	qty_t const new_qty;
 
 };
-
-template<itch_t __code>
-class parse
-{
-	//itch_message<__code> operator() (char const *ptr) {};
-};
-
 
