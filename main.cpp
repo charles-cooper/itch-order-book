@@ -16,7 +16,6 @@ class PROCESS
 			assert(msglen == netlen<__code>);
 
 			__buf->ensure(netlen<__code>);
-			//printf("%d %c\n", char(__code), char(__code));
 			itch_message<__code> ret = itch_message<__code>::parse(__buf->get(0));
 			__buf->advance(netlen<__code>);
 			return ret;
@@ -42,6 +41,10 @@ int main()
 	buf.fd = STDIN_FILENO;
 	std::chrono::steady_clock::time_point start;
 	size_t npkts = 0;
+#define BUILD_BOOK 0
+#if !BUILD_BOOK
+	size_t nadds(0);
+#endif
 	while (is_ok(buf.ensure(3)))
 	{
 		if (npkts) ++npkts;
@@ -68,45 +71,62 @@ int main()
 					start = std::chrono::steady_clock::now();
 					++npkts;
 				}					
-
 				auto const pkt = PROCESS<itch_t::ADD_ORDER>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::add_order(order_id_t(pkt.oid), book_id_t(pkt.stock_locate), mksigned(pkt.price, pkt.buy), pkt.qty);
+#else
+				++nadds;
+#endif
 				break;
 			}
 			case (itch_t::ADD_ORDER_MPID) :
 			{
 				auto const pkt = PROCESS<itch_t::ADD_ORDER_MPID>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::add_order(order_id_t(pkt.add_msg.oid), book_id_t(pkt.add_msg.stock_locate), mksigned(pkt.add_msg.price, pkt.add_msg.buy), pkt.add_msg.qty);
+#else
+				++nadds;
+#endif
 				break;
 			}
 			case(itch_t::EXECUTE_ORDER) :
 			{
 				auto const pkt = PROCESS<itch_t::EXECUTE_ORDER>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::execute_order(order_id_t(pkt.oid), pkt.qty);
+#endif
 				break;
 			}
 			case(itch_t::EXECUTE_ORDER_WITH_PRICE) :
 			{
 				auto const pkt = PROCESS<itch_t::EXECUTE_ORDER_WITH_PRICE>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::execute_order(order_id_t(pkt.exec.oid), pkt.exec.qty);
+#endif
 				break;
 			}
 			case(itch_t::REDUCE_ORDER) :
 			{
 				auto const pkt = PROCESS<itch_t::REDUCE_ORDER>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::cancel_order(order_id_t(pkt.oid), pkt.qty);
+#endif
 				break;
 			}
 			case(itch_t::DELETE_ORDER) :
 			{
 				auto const pkt = PROCESS<itch_t::DELETE_ORDER>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::delete_order(order_id_t(pkt.oid));
+#endif
 				break;
 			}
 			case (itch_t::REPLACE_ORDER) :
 			{
 				auto const pkt = PROCESS<itch_t::REPLACE_ORDER>::read_from(&buf);
+#if BUILD_BOOK
 				order_book::replace_order(order_id_t(pkt.oid), order_id_t(pkt.new_order_id), mksigned(pkt.new_price, BUY_SELL::BUY), pkt.new_qty);
+#endif
 				// actually it will get re-signed inside. code smell
 				break;
 			}
@@ -118,6 +138,9 @@ int main()
 			}
 		}
 	}
+#if !BUILD_BOOK
+	printf("%lu adds\n", nadds);
+#endif
 	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 	size_t nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 	printf("%lu packets in %lu nanos , %.2f nanos per packet \n", npkts, nanos, nanos / (double)npkts);

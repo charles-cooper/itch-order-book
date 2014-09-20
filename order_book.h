@@ -218,29 +218,26 @@ class order_book
 		}
 		// shared between cancel(aka partial cancel aka reduce) and execute
 		void REDUCE_ORDER(order_ptr_t const ptr, qty_t const qty) {
-			uint32_t tmp;
-
-			tmp = uint32_t(m_levels[ptr.level_idx].m_qty);
-			tmp -= uint32_t(qty);
+			auto tmp = MKPRIMITIVE(m_levels[ptr.level_idx].m_qty);
+			tmp -= MKPRIMITIVE(qty);
 			m_levels[ptr.level_idx].m_qty = qty_t(tmp);
 
-			tmp = uint32_t(m_orders[ptr.order_idx].m_qty);
-			tmp -= uint32_t(qty);
+			tmp = MKPRIMITIVE(m_orders[ptr.order_idx].m_qty);
+			tmp -= MKPRIMITIVE(qty);
 			m_orders[ptr.order_idx].m_qty = qty_t(tmp);
 		}
 		// shared between delete and execute
 		void DELETE_ORDER(order_ptr_t const ptr) {
-			uint32_t tmp;
-			assert(uint32_t(m_levels[ptr.level_idx].m_qty)
-					>= uint32_t(m_orders[ptr.order_idx].m_qty));
-			tmp = uint32_t(m_levels[ptr.level_idx].m_qty);
-			tmp -= uint32_t(m_orders[ptr.order_idx].m_qty);
+			assert(MKPRIMITIVE(m_levels[ptr.level_idx].m_qty)
+					>= MKPRIMITIVE(m_orders[ptr.order_idx].m_qty));
+			auto tmp = MKPRIMITIVE(m_levels[ptr.level_idx].m_qty);
+			tmp -= MKPRIMITIVE(m_orders[ptr.order_idx].m_qty);
 			m_levels[ptr.level_idx].m_qty = qty_t(tmp);
 			if (qty_t(0) == m_levels[ptr.level_idx].m_qty) {
+				//DELETE([ptr.level_idx].price);
 				sprice_t price = m_levels[ptr.level_idx].m_price;
 				sorted_levels_t *sorted_levels = is_bid(price) ?
 					&m_bids : &m_offers;
-				//DELETE([ptr.level_idx].price);
 				sorted_levels_t::__size_t i = sorted_levels->m_size;
 				while (i--) {
 					if (sorted_levels->m_data[i].m_price == price) {
@@ -251,29 +248,29 @@ class order_book
 				m_levels.free(ptr.level_idx);
 			}
 			m_orders.free(ptr.order_idx);
-			}
-			static void execute_order(order_id_t const oid, qty_t const qty) {
-				order_ptr_t const ptr = oid_map[oid];
-				order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
+		}
+		static void execute_order(order_id_t const oid, qty_t const qty) {
+			order_ptr_t const ptr = oid_map[oid];
+			order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
 
-				if (qty == book->m_orders[ptr.order_idx].m_qty) {
-					book->DELETE_ORDER(ptr);
-				} else {
-					book->REDUCE_ORDER(ptr, qty);
-				}
-			}
-			static void replace_order(order_id_t const old_oid, order_id_t const new_oid, sprice_t new_price, qty_t const new_qty)
-			{
-				order_ptr_t const ptr = oid_map[old_oid];
-				order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
-				bool bid = MKPRIMITIVE(book->m_levels[ptr.level_idx].m_price) >= 0;
+			if (qty == book->m_orders[ptr.order_idx].m_qty) {
 				book->DELETE_ORDER(ptr);
-				if (!bid) {
-					new_price = sprice_t(-1*MKPRIMITIVE(new_price));
-				}
-				book->add_order(new_oid, ptr.book_idx, new_price, new_qty);
+			} else {
+				book->REDUCE_ORDER(ptr, qty);
 			}
-		};
+		}
+		static void replace_order(order_id_t const old_oid, order_id_t const new_oid, sprice_t new_price, qty_t const new_qty)
+		{
+			order_ptr_t const ptr = oid_map[old_oid];
+			order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
+			bool bid = MKPRIMITIVE(book->m_levels[ptr.level_idx].m_price) >= 0;
+			book->DELETE_ORDER(ptr);
+			if (!bid) {
+				new_price = sprice_t(-1*MKPRIMITIVE(new_price));
+			}
+			book->add_order(new_oid, ptr.book_idx, new_price, new_qty);
+		}
+};
 
-		std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
-		order_book *order_book::s_books = new order_book[MAX_BOOKS];
+std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
+order_book *order_book::s_books = new order_book[MAX_BOOKS];
