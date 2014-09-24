@@ -4,6 +4,8 @@
 // TODO replace casts with following:
 #define MKPRIMITIVE(__x) ((std::underlying_type<decltype(__x)>::type)__x)
 
+#define TRACE 1
+
 constexpr bool is_power_of_two(uint64_t n) { // stolen from linux header
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
@@ -168,6 +170,9 @@ class order_book
 
 		// TODO remove static signature on these things and put in object
 		static void add_order(order_id_t const oid, book_id_t const book_idx, sprice_t const price, qty_t const qty) {
+#if TRACE
+			printf("ADD %lu, %u, %d, %u\n", oid, book_idx, price, qty);
+#endif//TRACE
 			assert(!oid_map.count(oid));
 			oid_map[oid] = s_books[size_t(book_idx)].ADD_ORDER(book_idx, price, qty);
 		}
@@ -209,10 +214,16 @@ class order_book
 			return ptr;
 		}
 		static void delete_order(order_id_t const oid) {
+#if TRACE
+			printf("DELETE %lu\n", oid);
+#endif//TRACE
 			order_ptr_t ptr = oid_map[oid];
 			s_books[size_t(ptr.book_idx)].DELETE_ORDER(ptr);
 		}
 		static void cancel_order(order_id_t const oid, qty_t const qty) {
+#if TRACE
+			printf("REDUCE %lu, %u\n", oid, qty);
+#endif//TRACE
 			order_ptr_t ptr = oid_map[oid];
 			s_books[size_t(ptr.book_idx)].REDUCE_ORDER(ptr, qty);
 		}
@@ -250,6 +261,9 @@ class order_book
 			m_orders.free(ptr.order_idx);
 		}
 		static void execute_order(order_id_t const oid, qty_t const qty) {
+#if TRACE
+			printf("EXECUTE %lu %u\n", oid, qty);
+#endif//TRACE
 			order_ptr_t const ptr = oid_map[oid];
 			order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
 
@@ -261,9 +275,12 @@ class order_book
 		}
 		static void replace_order(order_id_t const old_oid, order_id_t const new_oid, sprice_t new_price, qty_t const new_qty)
 		{
+#if TRACE
+			printf("REPLACE %lu %lu %d %u\n", old_oid, new_oid, new_price, new_qty);
+#endif//TRACE
 			order_ptr_t const ptr = oid_map[old_oid];
 			order_book *book = &s_books[MKPRIMITIVE(ptr.book_idx)];
-			bool bid = MKPRIMITIVE(book->m_levels[ptr.level_idx].m_price) >= 0;
+			bool const bid = is_bid(book->m_levels[ptr.level_idx].m_price);
 			book->DELETE_ORDER(ptr);
 			if (!bid) {
 				new_price = sprice_t(-1*MKPRIMITIVE(new_price));

@@ -41,7 +41,7 @@ int main()
 	buf.fd = STDIN_FILENO;
 	std::chrono::steady_clock::time_point start;
 	size_t npkts = 0;
-#define BUILD_BOOK 0
+#define BUILD_BOOK 1
 #if !BUILD_BOOK
 	size_t nadds(0);
 #endif
@@ -72,6 +72,7 @@ int main()
 					++npkts;
 				}					
 				auto const pkt = PROCESS<itch_t::ADD_ORDER>::read_from(&buf);
+				assert(uint64_t(pkt.oid) < uint64_t(std::numeric_limits<int32_t>::max()));
 #if BUILD_BOOK
 				order_book::add_order(order_id_t(pkt.oid), book_id_t(pkt.stock_locate), mksigned(pkt.price, pkt.buy), pkt.qty);
 #else
