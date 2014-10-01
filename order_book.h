@@ -4,7 +4,7 @@
 // TODO replace casts with following:
 #define MKPRIMITIVE(__x) ((std::underlying_type<decltype(__x)>::type)__x)
 
-#define TRACE 1
+//#define TRACE 1
 
 constexpr bool is_power_of_two(uint64_t n) { // stolen from linux header
 	return (n != 0 && ((n & (n - 1)) == 0));
@@ -56,18 +56,21 @@ class fixed_array_allocator
 		T &operator[](ptr_t idx) {
 			return m_allocated[__size_t(idx)];
 		}
+#define ALLOC_INVARIANT (m_last_free - m_first_free <= m_size) /* aka can't free more than has been allocated */
 		__ptr alloc(void) {
 			if (m_first_free == m_last_free) {
-				__size_t ret = m_size++;
-				assert(IS_VALID(m_size));
-				return __ptr(ret++);
+				assert(IS_VALID(m_size+1));
+				return __ptr(m_size++);
 			}
-			assert(m_first_free <= m_last_free);
-			return __ptr(m_free[(m_first_free++) & BUF_MASK]);
+			auto ret = __ptr(m_free[m_first_free++ & BUF_MASK]);
+			assert(ALLOC_INVARIANT);
+			return ret;
 		}
 		void free(__ptr idx) {
-			m_free[(m_last_free++) & BUF_MASK] = __size_t(idx);
+			m_free[m_last_free++ & BUF_MASK] = __size_t(idx);
+			assert(ALLOC_INVARIANT);
 		}
+#undef ALLOC_INVARIANT
 };
 class level
 {
@@ -129,6 +132,7 @@ class fixed_size_array
 		}
 		void insert(T const &val, size_t idx) {
 			assert(idx <= m_size);
+			assert(IS_VALID(m_size+1));
 			memmove(&m_data[idx+1], &m_data[idx], sizeof(T)*(m_size-idx));
 			++m_size;
 
@@ -160,7 +164,7 @@ class order_book
 	public :
 		static constexpr size_t MAX_BOOKS = 1<<15;
 		static constexpr size_t MAX_LEVELS = 1<<10;
-		static constexpr size_t MAX_ORDERS = 1<<15;
+		static constexpr size_t MAX_ORDERS = 1<<17;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
