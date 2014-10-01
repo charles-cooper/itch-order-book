@@ -164,7 +164,7 @@ class order_book
 	public :
 		static constexpr size_t MAX_BOOKS = 1<<15;
 		static constexpr size_t MAX_LEVELS = 1<<10;
-		static constexpr size_t MAX_ORDERS = 1<<17;
+		static constexpr size_t MAX_ORDERS = 1<<20;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
@@ -303,4 +303,4 @@ class order_book
 };
 
 std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
-order_book *order_book::s_books = new order_book[MAX_BOOKS];
+order_book *order_book::s_books = (order_book*)malloc(sizeof(order_book)*MAX_BOOKS);
