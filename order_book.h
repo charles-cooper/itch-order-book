@@ -171,10 +171,14 @@ class order_book
 		// TODO remove static signature on these things and put in object
 		static void add_order(order_id_t const oid, book_id_t const book_idx, sprice_t const price, qty_t const qty) {
 #if TRACE
-			printf("ADD %lu, %u, %d, %u\n", oid, book_idx, price, qty);
+			printf("ADD %lu, %u, %d, %u", oid, book_idx, price, qty);
 #endif//TRACE
 			assert(!oid_map.count(oid));
 			oid_map[oid] = s_books[size_t(book_idx)].ADD_ORDER(book_idx, price, qty);
+#if TRACE
+			auto lvl = oid_map[oid].level_idx;
+			printf(", %u, %u \n", lvl, s_books[size_t(book_idx)].m_levels[lvl].m_qty);
+#endif//TRACE
 		}
 		order_ptr_t ADD_ORDER(book_id_t const book_idx, sprice_t const price, qty_t const qty)
 		{
@@ -196,12 +200,12 @@ class order_book
 					break;
 				}
 			}
-			++insertion_point;
 			if (!found) {
 				ptr.level_idx = m_levels.alloc();
 				m_levels[ptr.level_idx].m_qty = qty_t(0);
 				m_levels[ptr.level_idx].m_price = price;
 				price_level const px(price, ptr.level_idx);
+				++insertion_point;
 				sorted_levels->insert(px, insertion_point);
 			}
 			m_levels[ptr.level_idx].m_qty = m_levels[ptr.level_idx].m_qty + qty;
@@ -245,7 +249,7 @@ class order_book
 			tmp -= MKPRIMITIVE(m_orders[ptr.order_idx].m_qty);
 			m_levels[ptr.level_idx].m_qty = qty_t(tmp);
 			if (qty_t(0) == m_levels[ptr.level_idx].m_qty) {
-				//DELETE([ptr.level_idx].price);
+				//DELETE_SORTED([ptr.level_idx].price);
 				sprice_t price = m_levels[ptr.level_idx].m_price;
 				sorted_levels_t *sorted_levels = is_bid(price) ?
 					&m_bids : &m_offers;
