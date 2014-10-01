@@ -126,13 +126,15 @@ class fixed_size_array
 		}
 		void insert(T const &val, size_t idx) {
 			assert(idx <= m_size);
-			memmove(&m_data[idx+1], &m_data[idx], m_size - idx);
+			memmove(&m_data[idx+1], &m_data[idx], sizeof(T)*(m_size-idx));
 			++m_size;
+
 			m_data[idx] = val;
 		}
 		void erase(size_t idx) {
+			assert(idx < m_size);
 			--m_size;
-			memmove(&m_data[idx], &m_data[idx+1], m_size - idx);
+			memmove(&m_data[idx], &m_data[idx+1], sizeof(T)*(m_size-idx));
 		}
 };
 
