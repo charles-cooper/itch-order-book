@@ -39,8 +39,11 @@ class fixed_array_allocator
 		// maintain a FIFO queue of free locations. this is implemented
 		// as a deque in a circular buffer so that calls to alloc or free
 		// only require one pointer dereference. another option would be
-		// to use an array stack starting at zero but calls to free
+		// to use an array starting at zero (requiring no dereference) but calls to free
 		// would require memmove, thrashing the cache
+		// the last option would be to implement a LIFO stack which would
+		// require no memmove and no derference. however i guess the allocation
+		// would not result in as much locality
 		__size_t m_free[N];
 		fixed_array_allocator()
 	{
