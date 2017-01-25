@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <vector>
 
 // TODO replace casts with following:
 #define MKPRIMITIVE(__x) ((std::underlying_type<decltype(__x)>::type)__x)
@@ -98,7 +99,7 @@ class order
 	{}
 };
 enum class book_id_t : uint16_t {};
-enum class level_id_t : uint16_t {};
+enum class level_id_t : uint32_t {};
 enum class order_id_t : uint32_t {};
 typedef struct order_ptr
 {
@@ -163,15 +164,16 @@ class order_book
 {
 	public :
 		static constexpr size_t MAX_BOOKS = 1<<14;
-		static constexpr size_t MAX_LEVELS = 1<<10;
-		static constexpr size_t MAX_ORDERS = 1<<14;
+		static constexpr size_t MAX_LEVELS = 1<<20;
+		static constexpr size_t MAX_ORDERS = 1<<22;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
 		using order_vector = fixed_array_allocator<order, order_id_t, order_id_t(MAX_ORDERS)>;
-		using sorted_levels_t = fixed_size_array<price_level, level_id_t, MAX_LEVELS / 2>;
-		level_vector m_levels;
-		order_vector m_orders;
+		// using sorted_levels_t = fixed_size_array<price_level, level_id_t, MAX_LEVELS / 2>;
+    using sorted_levels_t = std::vector<price_level>;
+		static level_vector m_levels;
+		static order_vector m_orders;
 		sorted_levels_t m_bids;
 		sorted_levels_t m_offers;
 		using level_ptr_t = level_vector::__ptr;
@@ -196,10 +198,11 @@ class order_book
 
 			sorted_levels_t *sorted_levels = is_bid(price) ? &m_bids : &m_offers;
 			// search descending
-			sorted_levels_t::__size_t insertion_point = sorted_levels->m_size;
+			// sorted_levels_t::__size_t insertion_point = sorted_levels->m_size;
+      auto insertion_point = sorted_levels->end();
 			bool found = false;
-			while (insertion_point--) {
-				price_level &curprice = sorted_levels->m_data[insertion_point];
+			while (insertion_point-- != sorted_levels->begin()) {
+				price_level &curprice = *insertion_point; // sorted_levels->m_data[insertion_point];
 				if (curprice.m_price == price) {
 					ptr.level_idx = curprice.m_ptr;
 					found = true;
@@ -215,7 +218,7 @@ class order_book
 				m_levels[ptr.level_idx].m_price = price;
 				price_level const px(price, ptr.level_idx);
 				++insertion_point;
-				sorted_levels->insert(px, insertion_point);
+				sorted_levels->insert(insertion_point, px);
 			}
 			m_levels[ptr.level_idx].m_qty = m_levels[ptr.level_idx].m_qty + qty;
 			//book->m_levels[idx].num_orders += 1;
@@ -262,10 +265,11 @@ class order_book
 				sprice_t price = m_levels[ptr.level_idx].m_price;
 				sorted_levels_t *sorted_levels = is_bid(price) ?
 					&m_bids : &m_offers;
-				sorted_levels_t::__size_t i = sorted_levels->m_size;
-				while (i--) {
-					if (sorted_levels->m_data[i].m_price == price) {
-						sorted_levels->erase(i);
+				// sorted_levels_t::__size_t i = sorted_levels->m_size;
+        auto it = sorted_levels->end();
+				while (it-- != sorted_levels->begin()) {
+					if (it->m_price == price) {
+						sorted_levels->erase(it);
 						break;
 					}
 				}
@@ -304,3 +308,5 @@ class order_book
 
 std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
 order_book *order_book::s_books = new order_book[order_book::MAX_BOOKS];
+order_book::level_vector order_book::m_levels = level_vector();
+order_book::order_vector order_book::m_orders = order_vector();
