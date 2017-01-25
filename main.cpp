@@ -37,7 +37,6 @@ static sprice_t mksigned(price_t price, BUY_SELL buy)
 
 int main()
 {
-  printf("%lu\n", sizeof(order_book)*order_book::MAX_BOOKS);
 	buf_t buf(1024);
 	buf.fd = STDIN_FILENO;
 	std::chrono::steady_clock::time_point start;
@@ -45,7 +44,12 @@ int main()
 #define BUILD_BOOK 1
 #if !BUILD_BOOK
 	size_t nadds(0);
+  uint64_t maxoid(0);
+#else
+  //order_book::oid_map.max_load_factor(0.5);
+  order_book::oid_map.reserve(order_id_t(184118975*2)); // the first number is the empirically largest oid seen. multiply by 2 for good measure
 #endif
+  printf("%lu\n", sizeof(order_book)*order_book::MAX_BOOKS);
 	while (is_ok(buf.ensure(3)))
 	{
 		if (npkts) ++npkts;
@@ -77,6 +81,9 @@ int main()
 #if BUILD_BOOK
 				order_book::add_order(order_id_t(pkt.oid), book_id_t(pkt.stock_locate), mksigned(pkt.price, pkt.buy), pkt.qty);
 #else
+        int64_t oid = int64_t(pkt.oid);
+        maxoid = maxoid > uint64_t(pkt.oid) ? maxoid : uint64_t(pkt.oid);
+        // printf("oid:%lu, nadds:%lu, npkts:%lu, %lu, %lu, %f, %f\n", oid, nadds, npkts, maxoid, oid - (int64_t)npkts, oid / (double)nadds, oid / (double)npkts);
 				++nadds;
 #endif
 				break;
@@ -142,6 +149,7 @@ int main()
 	}
 #if !BUILD_BOOK
 	printf("%lu adds\n", nadds);
+	printf("maxoid %lu\n", maxoid);
 #endif
 	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 	size_t nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
