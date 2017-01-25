@@ -37,6 +37,7 @@ static sprice_t mksigned(price_t price, BUY_SELL buy)
 
 int main()
 {
+  printf("%lu\n", sizeof(order_book)*order_book::MAX_BOOKS);
 	buf_t buf(1024);
 	buf.fd = STDIN_FILENO;
 	std::chrono::steady_clock::time_point start;
@@ -126,7 +127,7 @@ int main()
 			{
 				auto const pkt = PROCESS<itch_t::REPLACE_ORDER>::read_from(&buf);
 #if BUILD_BOOK
-				order_book::replace_order(order_id_t(pkt.oid), order_id_t(pkt.new_order_id), mksigned(pkt.new_price, BUY_SELL::BUY), pkt.new_qty);
+				order_book::replace_order(order_id_t(pkt.oid), order_id_t(pkt.new_order_id), pkt.new_qty, mksigned(pkt.new_price, BUY_SELL::BUY));
 #endif
 				// actually it will get re-signed inside. code smell
 				break;

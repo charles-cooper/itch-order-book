@@ -210,19 +210,19 @@ using order_replace_t = itch_message<MSG::REPLACE_ORDER>;
 template<>
 struct itch_message<MSG::REPLACE_ORDER>
 {
-	itch_message(oid_t __old_oid,  oid_t __new_oid, price_t __p, qty_t __q) :
-		oid(__old_oid), new_order_id(__new_oid), new_price(__p), new_qty(__q)
+	itch_message(oid_t __old_oid,  oid_t __new_oid, qty_t __q, price_t __p) :
+		oid(__old_oid), new_order_id(__new_oid), new_qty(__q), new_price(__p)
 	{}
 	oid_t const oid;
 	oid_t const new_order_id;
-	price_t const new_price;
 	qty_t const new_qty;
+	price_t const new_price;
 	static itch_message parse(char const *ptr) {
 		return itch_message(
 				read_oid(ptr+11),
 				read_oid(ptr+19),
-				read_price(ptr+27),
-				read_qty(ptr+31)
+				read_qty(ptr+27),
+				read_price(ptr+31)
 				);
 	}
 };

@@ -162,9 +162,9 @@ qty_t operator + (qty_t const a, qty_t const b) {
 class order_book
 {
 	public :
-		static constexpr size_t MAX_BOOKS = 1<<15;
+		static constexpr size_t MAX_BOOKS = 1<<14;
 		static constexpr size_t MAX_LEVELS = 1<<10;
-		static constexpr size_t MAX_ORDERS = 1<<20;
+		static constexpr size_t MAX_ORDERS = 1<<14;
 		static order_book *s_books;//[MAX_BOOKS]; // can we allocate this on the stack??
 		static std::unordered_map<order_id_t, order_ptr_t, order_id_hash> oid_map;
 		using level_vector = fixed_array_allocator<level, level_id_t, level_id_t(MAX_LEVELS)>;
@@ -286,7 +286,7 @@ class order_book
 				book->REDUCE_ORDER(ptr, qty);
 			}
 		}
-		static void replace_order(order_id_t const old_oid, order_id_t const new_oid, sprice_t new_price, qty_t const new_qty)
+		static void replace_order(order_id_t const old_oid, order_id_t const new_oid, qty_t const new_qty, sprice_t new_price)
 		{
 #if TRACE
 			printf("REPLACE %lu %lu %d %u\n", old_oid, new_oid, new_price, new_qty);
@@ -303,4 +303,4 @@ class order_book
 };
 
 std::unordered_map<order_id_t, order_ptr_t, order_id_hash> order_book::oid_map = std::unordered_map<order_id_t, order_ptr_t, order_id_hash>();
-order_book *order_book::s_books = (order_book*)malloc(sizeof(order_book)*MAX_BOOKS);
+order_book *order_book::s_books = new order_book[order_book::MAX_BOOKS];
