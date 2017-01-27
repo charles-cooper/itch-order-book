@@ -44,6 +44,11 @@
  * performance could be bad - if somebody adds and deletes orders
  * far away from the inside of the book it could result in longer
  * processing for those messages.
+ *
+ * Lastly, since the orders and levels are stored in their own global
+ * pools, they are likely to be local and there is very little pressure
+ * on the allocator. In fact the only allocations are bulk allocations
+ * from stl container resizing.
  */
 
 // TODO replace casts with following:
