@@ -1,5 +1,4 @@
 #pragma once
-#include <unordered_map>
 #include <vector>
 
 /* This is an optimized order book implementation.

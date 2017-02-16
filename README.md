@@ -4,4 +4,4 @@ Among other things, there is no hashtable or trees used, only `<vector>`s and C 
 
 Protocol specification: http://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHSpecification.pdf.
 
-In order to run it, `./build.sh && ./a.out < [file]`.
+In order to run it, `./build.sh && ./a.out < [file]`. Note that the implementation is fast enough that you will likely to be I/O bound - in order to find out how fast it really is you should 'warm-up' by loading the file into the buffer cache using `cat [file] > /dev/null`.
