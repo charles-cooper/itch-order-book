@@ -55,14 +55,14 @@
 
 //#define TRACE 1
 
-constexpr bool is_power_of_two(uint64_t n) { // stolen from linux header
+constexpr bool is_power_of_two(uint64_t n)
+{  // stolen from linux header
   return (n != 0 && ((n & (n - 1)) == 0));
 }
 
 enum class sprice_t : int32_t {};
 bool constexpr is_bid(sprice_t const x) { return int32_t(x) >= 0; }
-
-#define MEMORY_DEFS \
+#define MEMORY_DEFS    \
   using __ptr = ptr_t; \
   using size_t__ = typename std::underlying_type<ptr_t>::type;
 
@@ -86,51 +86,41 @@ bool constexpr is_bid(sprice_t const x) { return int32_t(x) >= 0; }
  * For instance we define `enum class order_id_t : uint32_t {}`
  * instead of (order *)
  */
-template<class T, typename ptr_t, size_t SIZE_HINT>
+template <class T, typename ptr_t, size_t SIZE_HINT>
 class pool
 {
-  public :
-    MEMORY_DEFS;
-    std::vector<T> m_allocated;
-    std::vector<ptr_t> m_free;
-    pool() {
-      m_allocated.reserve(SIZE_HINT);
+ public:
+  MEMORY_DEFS;
+  std::vector<T> m_allocated;
+  std::vector<ptr_t> m_free;
+  pool() { m_allocated.reserve(SIZE_HINT); }
+  pool(size_t reserve_size) { m_allocated.reserve(reserve_size); }
+  T *get(ptr_t idx) { return &m_allocated[size_t__(idx)]; }
+  T &operator[](ptr_t idx) { return m_allocated[size_t__(idx)]; }
+#define ALLOC_INVARIANT \
+  (m_free_size >= 0) /* aka can't free more than has been allocated */
+  __ptr alloc(void)
+  {
+    if (m_free.empty()) {
+      auto ret = __ptr(m_allocated.size());
+      m_allocated.push_back(T());
+      return ret;
+    } else {
+      auto ret = __ptr(m_free.back());
+      m_free.pop_back();
+      return ret;
     }
-    pool(size_t reserve_size) {
-      m_allocated.reserve(reserve_size);
-    }
-    T *get(ptr_t idx) {
-      return &m_allocated[size_t__(idx)];
-    }
-    T &operator[](ptr_t idx) {
-      return m_allocated[size_t__(idx)];
-    }
-#define ALLOC_INVARIANT (m_free_size >= 0) /* aka can't free more than has been allocated */
-    __ptr alloc(void) {
-      if (m_free.empty()) {
-        auto ret = __ptr(m_allocated.size());
-        m_allocated.push_back(T());
-        return ret;
-      } else {
-        auto ret = __ptr(m_free.back());
-        m_free.pop_back();
-        return ret;
-      }
-    }
-    void free(__ptr idx) {
-      m_free.push_back(idx);
-    }
+  }
+  void free(__ptr idx) { m_free.push_back(idx); }
 #undef ALLOC_INVARIANT
 };
 class level
 {
-  public :
-    sprice_t m_price;
-    qty_t m_qty;
-    level(sprice_t __price, qty_t __qty) :
-      m_price(__price), m_qty(__qty)
-  {}
-    level() {}
+ public:
+  sprice_t m_price;
+  qty_t m_qty;
+  level(sprice_t __price, qty_t __qty) : m_price(__price), m_qty(__qty) {}
+  level() {}
 };
 
 enum class book_id_t : uint16_t {};
@@ -146,8 +136,7 @@ enum class order_id_t : uint32_t {};
  * as well as just the price level if we want to modify the quantity
  * at the level without searching for it in the book.
  */
-typedef struct order
-{
+typedef struct order {
   qty_t m_qty;
   level_id_t level_idx;
   book_id_t book_idx;
@@ -155,179 +144,192 @@ typedef struct order
 
 class price_level
 {
-  public :
-    price_level() {}
-    price_level(sprice_t __price, level_id_t __ptr) :
-      m_price(__price), m_ptr(__ptr) {}
-    sprice_t m_price;
-    level_id_t m_ptr;
+ public:
+  price_level() {}
+  price_level(sprice_t __price, level_id_t __ptr)
+      : m_price(__price), m_ptr(__ptr)
+  {
+  }
+  sprice_t m_price;
+  level_id_t m_ptr;
 };
 
-template<class T>
-class oidmap {
-  public :
-    std::vector<T> m_data;
-    size_t m_size;
-    void reserve(order_id_t const oid) {
-      size_t const idx = size_t(oid);
-      if (idx >= m_data.size()) {
-        m_data.resize(idx + 1);
-      }
+template <class T>
+class oidmap
+{
+ public:
+  std::vector<T> m_data;
+  size_t m_size;
+  void reserve(order_id_t const oid)
+  {
+    size_t const idx = size_t(oid);
+    if (idx >= m_data.size()) {
+      m_data.resize(idx + 1);
     }
-    T &operator[](order_id_t const oid) {
-      size_t const idx = size_t(oid);
-      return m_data[idx];
-    }
-    T *get(order_id_t const oid) {
-      size_t const idx = size_t(oid);
-      return &m_data[idx];
-    }
+  }
+  T &operator[](order_id_t const oid)
+  {
+    size_t const idx = size_t(oid);
+    return m_data[idx];
+  }
+  T *get(order_id_t const oid)
+  {
+    size_t const idx = size_t(oid);
+    return &m_data[idx];
+  }
 };
 
-bool operator > (price_level a, price_level b) {
+bool operator>(price_level a, price_level b)
+{
   return int32_t(a.m_price) > int32_t(b.m_price);
 }
 
 struct order_id_hash {
-  size_t operator()(order_id_t const id) const {
-    return size_t(id);
-  }
+  size_t operator()(order_id_t const id) const { return size_t(id); }
 };
 
-qty_t operator + (qty_t const a, qty_t const b) {
+qty_t operator+(qty_t const a, qty_t const b)
+{
   return qty_t(MKPRIMITIVE(a) + MKPRIMITIVE(b));
 }
 
 class order_book
 {
-  public :
-    static constexpr size_t MAX_BOOKS = 1<<14;
-    static constexpr size_t NUM_LEVELS = 1<<20;
-    static order_book *s_books; // can we allocate this on the stack?
-    static oidmap<order_t> oid_map;
-    using level_vector = pool<level, level_id_t, NUM_LEVELS>;
-    using sorted_levels_t = std::vector<price_level>;
-    // A global allocator for all the price levels allocated by all the books.
-    static level_vector s_levels;
-    sorted_levels_t m_bids;
-    sorted_levels_t m_offers;
-    using level_ptr_t = level_vector::__ptr;
+ public:
+  static constexpr size_t MAX_BOOKS = 1 << 14;
+  static constexpr size_t NUM_LEVELS = 1 << 20;
+  static order_book *s_books;  // can we allocate this on the stack?
+  static oidmap<order_t> oid_map;
+  using level_vector = pool<level, level_id_t, NUM_LEVELS>;
+  using sorted_levels_t = std::vector<price_level>;
+  // A global allocator for all the price levels allocated by all the books.
+  static level_vector s_levels;
+  sorted_levels_t m_bids;
+  sorted_levels_t m_offers;
+  using level_ptr_t = level_vector::__ptr;
 
-    static void add_order(order_id_t const oid, book_id_t const book_idx, sprice_t const price, qty_t const qty) {
+  static void add_order(order_id_t const oid, book_id_t const book_idx,
+                        sprice_t const price, qty_t const qty)
+  {
 #if TRACE
-      printf("ADD %lu, %u, %d, %u", oid, book_idx, price, qty);
-#endif//TRACE
-      oid_map.reserve(oid);
-      order *order = oid_map.get(oid);
-      order->m_qty = qty;
-      order->book_idx = book_idx;
+    printf("ADD %lu, %u, %d, %u", oid, book_idx, price, qty);
+#endif  // TRACE
+    oid_map.reserve(oid);
+    order *order = oid_map.get(oid);
+    order->m_qty = qty;
+    order->book_idx = book_idx;
 
-      s_books[size_t(book_idx)].ADD_ORDER(order, price, qty);
+    s_books[size_t(book_idx)].ADD_ORDER(order, price, qty);
 #if TRACE
-      auto lvl = oid_map[oid].level_idx;
-      printf(", %u, %u \n", lvl, s_books[size_t(book_idx)].s_levels[lvl].m_qty);
-#endif//TRACE
+    auto lvl = oid_map[oid].level_idx;
+    printf(", %u, %u \n", lvl, s_books[size_t(book_idx)].s_levels[lvl].m_qty);
+#endif  // TRACE
+  }
+  void ADD_ORDER(order_t *order, sprice_t const price, qty_t const qty)
+  {
+    sorted_levels_t *sorted_levels = is_bid(price) ? &m_bids : &m_offers;
+    // search descending for the price
+    auto insertion_point = sorted_levels->end();
+    bool found = false;
+    while (insertion_point-- != sorted_levels->begin()) {
+      price_level &curprice = *insertion_point;
+      if (curprice.m_price == price) {
+        order->level_idx = curprice.m_ptr;
+        found = true;
+        break;
+      } else if (price > curprice.m_price) {
+        // insertion pt will be -1 if price < all prices
+        break;
+      }
     }
-    void ADD_ORDER(order_t *order, sprice_t const price, qty_t const qty)
-    {
+    if (!found) {
+      order->level_idx = s_levels.alloc();
+      s_levels[order->level_idx].m_qty = qty_t(0);
+      s_levels[order->level_idx].m_price = price;
+      price_level const px(price, order->level_idx);
+      ++insertion_point;
+      sorted_levels->insert(insertion_point, px);
+    }
+    s_levels[order->level_idx].m_qty = s_levels[order->level_idx].m_qty + qty;
+  }
+  static void delete_order(order_id_t const oid)
+  {
+#if TRACE
+    printf("DELETE %lu\n", oid);
+#endif  // TRACE
+    order_t *order = oid_map.get(oid);
+    s_books[size_t(order->book_idx)].DELETE_ORDER(order);
+  }
+  static void cancel_order(order_id_t const oid, qty_t const qty)
+  {
+#if TRACE
+    printf("REDUCE %lu, %u\n", oid, qty);
+#endif  // TRACE
+    order_t *order = oid_map.get(oid);
+    s_books[size_t(order->book_idx)].REDUCE_ORDER(order, qty);
+  }
+  // shared between cancel(aka partial cancel aka reduce) and execute
+  void REDUCE_ORDER(order_t *order, qty_t const qty)
+  {
+    auto tmp = MKPRIMITIVE(s_levels[order->level_idx].m_qty);
+    tmp -= MKPRIMITIVE(qty);
+    s_levels[order->level_idx].m_qty = qty_t(tmp);
+
+    tmp = MKPRIMITIVE(order->m_qty);
+    tmp -= MKPRIMITIVE(qty);
+    order->m_qty = qty_t(tmp);
+  }
+  // shared between delete and execute
+  void DELETE_ORDER(order_t *order)
+  {
+    assert(MKPRIMITIVE(s_levels[order->level_idx].m_qty) >=
+           MKPRIMITIVE(order->m_qty));
+    auto tmp = MKPRIMITIVE(s_levels[order->level_idx].m_qty);
+    tmp -= MKPRIMITIVE(order->m_qty);
+    s_levels[order->level_idx].m_qty = qty_t(tmp);
+    if (qty_t(0) == s_levels[order->level_idx].m_qty) {
+      // DELETE_SORTED([order->level_idx].price);
+      sprice_t price = s_levels[order->level_idx].m_price;
       sorted_levels_t *sorted_levels = is_bid(price) ? &m_bids : &m_offers;
-      // search descending for the price
-      auto insertion_point = sorted_levels->end();
-      bool found = false;
-      while (insertion_point-- != sorted_levels->begin()) {
-        price_level &curprice = *insertion_point;
-        if (curprice.m_price == price) {
-          order->level_idx = curprice.m_ptr;
-          found = true;
-          break;
-        } else if (price > curprice.m_price) {
-          // insertion pt will be -1 if price < all prices
+      auto it = sorted_levels->end();
+      while (it-- != sorted_levels->begin()) {
+        if (it->m_price == price) {
+          sorted_levels->erase(it);
           break;
         }
       }
-      if (!found) {
-        order->level_idx = s_levels.alloc();
-        s_levels[order->level_idx].m_qty = qty_t(0);
-        s_levels[order->level_idx].m_price = price;
-        price_level const px(price, order->level_idx);
-        ++insertion_point;
-        sorted_levels->insert(insertion_point, px);
-      }
-      s_levels[order->level_idx].m_qty = s_levels[order->level_idx].m_qty + qty;
+      s_levels.free(order->level_idx);
     }
-    static void delete_order(order_id_t const oid) {
+  }
+  static void execute_order(order_id_t const oid, qty_t const qty)
+  {
 #if TRACE
-      printf("DELETE %lu\n", oid);
-#endif//TRACE
-      order_t *order = oid_map.get(oid);
-      s_books[size_t(order->book_idx)].DELETE_ORDER(order);
-    }
-    static void cancel_order(order_id_t const oid, qty_t const qty) {
-#if TRACE
-      printf("REDUCE %lu, %u\n", oid, qty);
-#endif//TRACE
-      order_t *order = oid_map.get(oid);
-      s_books[size_t(order->book_idx)].REDUCE_ORDER(order, qty);
-    }
-    // shared between cancel(aka partial cancel aka reduce) and execute
-    void REDUCE_ORDER(order_t *order, qty_t const qty) {
-      auto tmp = MKPRIMITIVE(s_levels[order->level_idx].m_qty);
-      tmp -= MKPRIMITIVE(qty);
-      s_levels[order->level_idx].m_qty = qty_t(tmp);
+    printf("EXECUTE %lu %u\n", oid, qty);
+#endif  // TRACE
+    order_t *order = oid_map.get(oid);
+    order_book *book = &s_books[MKPRIMITIVE(order->book_idx)];
 
-      tmp = MKPRIMITIVE(order->m_qty);
-      tmp -= MKPRIMITIVE(qty);
-      order->m_qty = qty_t(tmp);
-    }
-    // shared between delete and execute
-    void DELETE_ORDER(order_t *order) {
-      assert(MKPRIMITIVE(s_levels[order->level_idx].m_qty)
-          >= MKPRIMITIVE(order->m_qty));
-      auto tmp = MKPRIMITIVE(s_levels[order->level_idx].m_qty);
-      tmp -= MKPRIMITIVE(order->m_qty);
-      s_levels[order->level_idx].m_qty = qty_t(tmp);
-      if (qty_t(0) == s_levels[order->level_idx].m_qty) {
-        //DELETE_SORTED([order->level_idx].price);
-        sprice_t price = s_levels[order->level_idx].m_price;
-        sorted_levels_t *sorted_levels = is_bid(price) ?
-          &m_bids : &m_offers;
-        auto it = sorted_levels->end();
-        while (it-- != sorted_levels->begin()) {
-          if (it->m_price == price) {
-            sorted_levels->erase(it);
-            break;
-          }
-        }
-        s_levels.free(order->level_idx);
-      }
-    }
-    static void execute_order(order_id_t const oid, qty_t const qty) {
-#if TRACE
-      printf("EXECUTE %lu %u\n", oid, qty);
-#endif//TRACE
-      order_t *order = oid_map.get(oid);
-      order_book *book = &s_books[MKPRIMITIVE(order->book_idx)];
-
-      if (qty == order->m_qty) {
-        book->DELETE_ORDER(order);
-      } else {
-        book->REDUCE_ORDER(order, qty);
-      }
-    }
-    static void replace_order(order_id_t const old_oid, order_id_t const new_oid, qty_t const new_qty, sprice_t new_price)
-    {
-#if TRACE
-      printf("REPLACE %lu %lu %d %u\n", old_oid, new_oid, new_price, new_qty);
-#endif//TRACE
-      order_t *order = oid_map.get(old_oid);
-      order_book *book = &s_books[MKPRIMITIVE(order->book_idx)];
-      bool const bid = is_bid(book->s_levels[order->level_idx].m_price);
+    if (qty == order->m_qty) {
       book->DELETE_ORDER(order);
-      if (!bid) {
-        new_price = sprice_t(-1*MKPRIMITIVE(new_price));
-      }
-      book->add_order(new_oid, order->book_idx, new_price, new_qty);
+    } else {
+      book->REDUCE_ORDER(order, qty);
     }
+  }
+  static void replace_order(order_id_t const old_oid, order_id_t const new_oid,
+                            qty_t const new_qty, sprice_t new_price)
+  {
+#if TRACE
+    printf("REPLACE %lu %lu %d %u\n", old_oid, new_oid, new_price, new_qty);
+#endif  // TRACE
+    order_t *order = oid_map.get(old_oid);
+    order_book *book = &s_books[MKPRIMITIVE(order->book_idx)];
+    bool const bid = is_bid(book->s_levels[order->level_idx].m_price);
+    book->DELETE_ORDER(order);
+    if (!bid) {
+      new_price = sprice_t(-1 * MKPRIMITIVE(new_price));
+    }
+    book->add_order(new_oid, order->book_idx, new_price, new_qty);
+  }
 };
 
 oidmap<order_t> order_book::oid_map = oidmap<order_t>();
