@@ -21,7 +21,8 @@ enum class itch_t {
   CROSS_TRADE = 'Q',
   BROKEN_TRADE = 'B',
   NET_ORDER_IMBALANCE = 'I',
-  RETAIL_PRICE_IMPROVEMENT = 'N'
+  RETAIL_PRICE_IMPROVEMENT = 'N',
+  PROCESS_LULD_AUCTION_COLLAR_MESSAGE = 'J'
 };
 using MSG = itch_t;
 template <MSG __type>
@@ -66,6 +67,8 @@ template <>
 constexpr unsigned char netlen<MSG::NET_ORDER_IMBALANCE> = 50;
 template <>
 constexpr unsigned char netlen<MSG::RETAIL_PRICE_IMPROVEMENT> = 20;
+template <>
+constexpr unsigned char netlen<MSG::PROCESS_LULD_AUCTION_COLLAR_MESSAGE> = 35;
 
 template <itch_t __code>
 struct itch_message {

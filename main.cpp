@@ -72,6 +72,7 @@ int main()
       DO_CASE(itch_t::BROKEN_TRADE);
       DO_CASE(itch_t::NET_ORDER_IMBALANCE);
       DO_CASE(itch_t::RETAIL_PRICE_IMPROVEMENT);
+      DO_CASE(itch_t::PROCESS_LULD_AUCTION_COLLAR_MESSAGE);
 
       case (itch_t::ADD_ORDER): {
         if (!npkts) {
